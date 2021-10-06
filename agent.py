@@ -69,6 +69,9 @@ def move_to_given_tile(player, opponent, unit, target_location, unit_movement, o
     # increase in x? East
     # decrease in y? North
     # increase in y? South
+    if xdiff == 0 and ydiff == 0:
+        with open(logfile, "a") as f:
+            f.write(f"{observation['step']} xdiff and ydiff = 0! Sign y: {np.sign(ydiff)} Sign x: {np.sign(xdiff)}\n")
 
     if abs(ydiff) > abs(xdiff):
         check_tile = game_state.map.get_cell(unit.pos.x, unit.pos.y + np.sign(ydiff))
@@ -76,30 +79,44 @@ def move_to_given_tile(player, opponent, unit, target_location, unit_movement, o
             unit_movement[unit.id] = check_tile
             return unit.move(unit.pos.direction_to(check_tile.pos))
         else:
+            if(xdiff == 0):
+                xdiff = 1
             check_tile = game_state.map.get_cell(unit.pos.x + np.sign(xdiff), unit.pos.y)
             if is_target_position_valid(player, opponent, unit_movement, check_tile, observation, wants_to_build):
                 unit_movement[unit.id] = check_tile
                 return unit.move(unit.pos.direction_to(check_tile.pos))
             else:
-                #Failed to move
-                with open(logfile, "a") as f:
-                    f.write(f"{observation['step']} Unit did not find a free tile to move!\n")
-                return None
+                check_tile = game_state.map.get_cell(unit.pos.x - np.sign(xdiff), unit.pos.y)
+                if is_target_position_valid(player, opponent, unit_movement, check_tile, observation, wants_to_build):
+                    unit_movement[unit.id] = check_tile
+                    return unit.move(unit.pos.direction_to(check_tile.pos))
+                else:
+                    #Failed to move
+                    with open(logfile, "a") as f:
+                        f.write(f"{observation['step']} Unit did not find a free tile to move!\n")
+                    return None
     else:
         check_tile = game_state.map.get_cell(unit.pos.x + np.sign(xdiff), unit.pos.y)
         if is_target_position_valid(player, opponent, unit_movement, check_tile, observation, wants_to_build):
             unit_movement[unit.id] = check_tile
             return unit.move(unit.pos.direction_to(check_tile.pos))
         else:
+            if (ydiff == 0):
+                ydiff = 1
             check_tile = game_state.map.get_cell(unit.pos.x, unit.pos.y + np.sign(ydiff))
             if is_target_position_valid(player, opponent, unit_movement, check_tile, observation, wants_to_build):
                 unit_movement[unit.id] = check_tile
                 return unit.move(unit.pos.direction_to(check_tile.pos))
             else:
+                check_tile = game_state.map.get_cell(unit.pos.x, unit.pos.y - np.sign(ydiff))
+                if is_target_position_valid(player, opponent, unit_movement, check_tile, observation, wants_to_build):
+                    unit_movement[unit.id] = check_tile
+                    return unit.move(unit.pos.direction_to(check_tile.pos))
                 #Failed to move
-                with open(logfile, "a") as f:
-                    f.write(f"{observation['step']} Unit did not find a free tile to move!\n")
-                return None
+                else:
+                    with open(logfile, "a") as f:
+                        f.write(f"{observation['step']} Unit did not find a free tile to move!\n")
+                    return None
 
 
 
