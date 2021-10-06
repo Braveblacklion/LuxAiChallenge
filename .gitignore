@@ -127,3 +127,14 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+###  Custom ###
+# jason replay
+replay.json
+
+#tar.gz
+simple.tar.gz
+#Pycharm idea
+.idea/
+
+##############
