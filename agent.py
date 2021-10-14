@@ -48,13 +48,23 @@ def get_closest_resources(unit, resource_tiles, player):
 
 def get_closest_city(player, unit):
     closest_dist = math.inf
-    closest_city_tile = None
+    closest_city = None
     for k, city in player.cities.items():
         for city_tile in city.citytiles:
             dist = city_tile.pos.distance_to(unit.pos)
             if dist < closest_dist:
                 closest_dist = dist
-                closest_city_tile = city_tile
+                closest_city = city
+    return closest_city
+
+def get_closest_citytile_from_city(unit, targetCity):
+    closest_dist = math.inf
+    closest_city_tile = None
+    for city_tile in targetCity.citytiles:
+        dist = city_tile.pos.distance_to(unit.pos)
+        if dist < closest_dist:
+            closest_dist = dist
+            closest_city_tile = city_tile
     return closest_city_tile
 
 def move_to_given_tile(player, opponent, unit, target_location, unit_movement, observation, wants_to_build):
@@ -317,58 +327,13 @@ def agent(observation, configuration):
                             f.write(f"{observation['step']}: Movement to build a City: {movement}\n")
                         if movement != None:
                             actions.append(movement)
-                        '''
-                        #actions.append(unit.move(unit.pos.direction_to(build_location.pos)))
-                        dir_diff = (build_location.pos.x - unit.pos.x, build_location.pos.y-unit.pos.y)
-                        xdiff = dir_diff[0]
-                        ydiff = dir_diff[1]
-
-                        # decrease in x? West
-                        # increase in x? East
-                        # decrease in y? North
-                        # increase in y? South
-
-                        if abs(ydiff) > abs(xdiff):
-                            check_tile = game_state.map.get_cell(unit.pos.x, unit.pos.y+np.sign(ydiff))
-                            if check_tile.citytile == None:
-                                if np.sign(ydiff) == 1:
-                                    actions.append(unit.move("s"))
-                                else:
-                                    actions.append(unit.move("n"))
-                            else:
-                                if np.sign(xdiff) == 1:
-                                    actions.append(unit.move("e"))
-                                else:
-                                    actions.append(unit.move("w"))
-                        else:
-                            check_tile = game_state.map.get_cell(unit.pos.x + np.sign(xdiff), unit.pos.y)
-                            if check_tile.citytile == None:
-                                if np.sign(xdiff) == 1:
-                                    actions.append(unit.move("e"))
-                                else:
-                                    actions.append(unit.move("w"))
-                            else:
-                                if np.sign(ydiff) == 1:
-                                    actions.append(unit.move("s"))
-                                else:
-                                    actions.append(unit.move("n"))
-                        '''
                         continue
                 # if unit is a worker and there is no cargo space left, and we have cities, lets return to them
                 elif len(player.cities) > 0:
-                    '''
-                    if unit.id in unit_to_city_dict:
-                        if unit_to_city_dict[unit.id] in city_tiles:
-                            with open(logfile, "a") as f:
-                                f.write(f"{observation['step']}: city in list: {unit_to_city_dict[unit.id]}\n")
-                        else:
-                            with open(logfile, "a") as f:
-                                f.write(f"{observation['step']}: city not in list: {unit_to_city_dict[unit.id]}\n")
-                    '''
 
                     if unit.id in unit_to_city_dict and unit_to_city_dict[unit.id] in city_tiles:
-
-                        movement = move_to_given_tile(player, opponent, unit, unit_to_city_dict[unit.id], unit_movement, observation, build_city)
+                        target_city_tile = get_closest_citytile_from_city(unit, unit_to_city_dict[unit.id])
+                        movement = move_to_given_tile(player, opponent, unit, target_city_tile, unit_movement, observation, build_city)
                         with open(logfile, "a") as f:
                             f.write(f"{observation['step']}: ifMovement: {movement}\n")
                         if movement != None:
@@ -378,7 +343,8 @@ def agent(observation, configuration):
                         #actions.append(unit.move(move_dir))
                     else:
                         unit_to_city_dict[unit.id] = get_closest_city(player, unit)
-                        movement = move_to_given_tile(player, opponent, unit, unit_to_city_dict[unit.id], unit_movement, observation, build_city)
+                        target_city_tile = get_closest_citytile_from_city(unit, unit_to_city_dict[unit.id])
+                        movement = move_to_given_tile(player, opponent, unit, target_city_tile, unit_movement, observation, build_city)
                         with open(logfile, "a") as f:
                             f.write(f"{observation['step']}: elseMovement: {movement}\n")
                         if movement != None:
