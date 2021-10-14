@@ -82,6 +82,7 @@ def move_to_given_tile(player, opponent, unit, target_location, unit_movement, o
     if xdiff == 0 and ydiff == 0:
         with open(logfile, "a") as f:
             f.write(f"{observation['step']} xdiff and ydiff = 0! Sign y: {np.sign(ydiff)} Sign x: {np.sign(xdiff)}\n")
+
         return None
 
     if abs(ydiff) >= abs(xdiff):
@@ -287,6 +288,7 @@ def agent(observation, configuration):
     # we iterate over all our units and do something with them
     for unit in player.units:
         #TODO change iterate from newest agent to oldest...??? usefull
+        #TODO check if nightcycle is close if so all units should return to the closest CityTile
         if unit.is_worker() and unit.can_act():
             if unit.get_cargo_space_left() > 0:
                 #closest_resource_tile = get_closest_resources(unit, resource_tiles, player)
@@ -298,18 +300,25 @@ def agent(observation, configuration):
                 if not cell.has_resource():
                     intended_resource = get_closest_resources(unit, resource_tiles, player)
                     unit_to_resource_dict[unit.id] = intended_resource
-                # Move to the intended resource
-                movement = move_to_given_tile(player, opponent, unit, intended_resource, unit_movement, observation, False)
-                if movement != None:
-                    actions.append(movement)
+                if unit.pos != cell.pos:
+                    # Move to the intended resource
+                    movement = move_to_given_tile(player, opponent, unit, intended_resource, unit_movement, observation, False)
+                    if movement != None:
+                        actions.append(movement)
+                        ## Add annotations fot the way of the unit
+                        actions.append(annotate.x(intended_resource.pos.x, intended_resource.pos.y))
+                        actions.append(annotate.line(unit.pos.x, unit.pos.y, intended_resource.pos.x, intended_resource.pos.y))
+                    else:
+                        with open(logfile, "a") as f:
+                            f.write(f"{observation['step']} Unit wants to move to Resource but movement returned None!\n")
 
 
             else:
+
                 if build_city:
                     with open(logfile, "a") as f:
                         f.write(f"{observation['step']} We want to build a city!\n")
                     if build_location is None:
-
                         empty_near = game_state.map.get_cell_by_pos(unit.pos)
                         build_location = find_empty_tile_near(empty_near, game_state, observation)
 
@@ -317,6 +326,8 @@ def agent(observation, configuration):
                         actions.append(unit.build_city())
                         build_city = False
                         build_location = None
+                        #Remove the unit out of the dict to automatically get the city assigned on next step, because the City is the closest
+                        unit_to_city_dict.pop(unit.id)
                         continue
                     else:
                         #logging.INFO(f"{observation['step']}: Navigating to where we wish to build!")
@@ -330,25 +341,36 @@ def agent(observation, configuration):
                         continue
                 # if unit is a worker and there is no cargo space left, and we have cities, lets return to them
                 elif len(player.cities) > 0:
+                    #if unit.id in unit_to_city_dict:
+                    #    with open(logfile, "a") as f:
+                    #        f.write(f"{observation['step']}: unit_to_city_dict: {unit_to_city_dict[unit.id]} \n")
+                    if unit.id in unit_to_city_dict:
+                        cityFound = False
+                        for city in city_tiles:
+                            if (unit_to_city_dict[unit.id].cityid == city.cityid):
+                                #with open(logfile, "a") as f:
+                                #    f.write(
+                                #        f"{observation['step']}: Found City to move to \n")
+                                cityFound = True
+                                break
+                        if cityFound:
+                            target_city_tile = get_closest_citytile_from_city(unit, unit_to_city_dict[unit.id])
+                            movement = move_to_given_tile(player, opponent, unit, target_city_tile, unit_movement, observation, build_city)
+                            #with open(logfile, "a") as f:
+                            #    f.write(f"{observation['step']}: ifMovement: {movement}\n")
+                            if movement != None:
+                                actions.append(movement)
 
-                    if unit.id in unit_to_city_dict and unit_to_city_dict[unit.id] in city_tiles:
-                        target_city_tile = get_closest_citytile_from_city(unit, unit_to_city_dict[unit.id])
-                        movement = move_to_given_tile(player, opponent, unit, target_city_tile, unit_movement, observation, build_city)
-                        with open(logfile, "a") as f:
-                            f.write(f"{observation['step']}: ifMovement: {movement}\n")
-                        if movement != None:
-                            actions.append(movement)
-
-                        #move_dir = unit.pos.direction_to(unit_to_city_dict[unit].pos)
-                        #actions.append(unit.move(move_dir))
-                    else:
-                        unit_to_city_dict[unit.id] = get_closest_city(player, unit)
-                        target_city_tile = get_closest_citytile_from_city(unit, unit_to_city_dict[unit.id])
-                        movement = move_to_given_tile(player, opponent, unit, target_city_tile, unit_movement, observation, build_city)
-                        with open(logfile, "a") as f:
-                            f.write(f"{observation['step']}: elseMovement: {movement}\n")
-                        if movement != None:
-                            actions.append(movement)
+                            #move_dir = unit.pos.direction_to(unit_to_city_dict[unit].pos)
+                            #actions.append(unit.move(move_dir))
+                        else:
+                            unit_to_city_dict[unit.id] = get_closest_city(player, unit)
+                            target_city_tile = get_closest_citytile_from_city(unit, unit_to_city_dict[unit.id])
+                            movement = move_to_given_tile(player, opponent, unit, target_city_tile, unit_movement, observation, build_city)
+                            with open(logfile, "a") as f:
+                                f.write(f"{observation['step']}: elseMovement: {movement}\n")
+                            if movement != None:
+                                actions.append(movement)
 
                         #move_dir = unit.pos.direction_to(unit_to_city_dict[unit.id].pos)
                         #actions.append(unit.move(move_dir))
