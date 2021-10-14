@@ -30,20 +30,33 @@ def get_resource_tiles(game_state, width, height):
                 resource_tiles.append(cell)
     return resource_tiles
 
-def get_closest_resources(unit, resource_tiles, player):
+def get_closest_resources(unit, resource_tiles, player, observation):
     closest_dist = math.inf
     closest_resource_tile = None
+    resource_tiles_possible = []
     # if the unit is a worker and we have space in cargo, lets find the nearest resource tile and try to mine it
     for resource_tile in resource_tiles:
         if resource_tile.resource.type == Constants.RESOURCE_TYPES.COAL and not player.researched_coal(): continue
         if resource_tile.resource.type == Constants.RESOURCE_TYPES.URANIUM and not player.researched_uranium(): continue
-        # Skip already zugewiesene resource tiles
-        if resource_tile in unit_to_resource_dict.values(): continue
+        # Skip already assigned resource tiles
+        if resource_tile in unit_to_resource_dict.values():
+            resource_tiles_possible.append(resource_tile)
+            continue
 
         dist = resource_tile.pos.distance_to(unit.pos)
         if dist < closest_dist:
             closest_dist = dist
             closest_resource_tile = resource_tile
+    # If Every Resource Tile has aa worker assigned just go to the closest Resource Tile
+    if closest_resource_tile == None:
+        for resource_tile in resource_tiles_possible:
+            dist = resource_tile.pos.distance_to(unit.pos)
+            if dist < closest_dist:
+                closest_dist = dist
+                closest_resource_tile = resource_tile
+    if closest_resource_tile == None:
+        with open(logfile, "a") as f:
+            f.write(f"{observation['step']} No more Resources on the map!\n")
     return closest_resource_tile
 
 def get_closest_city(player, unit):
@@ -267,7 +280,11 @@ def agent(observation, configuration):
         if w.id not in unit_to_resource_dict:
             with open(logfile, "a") as f:
                 f.write(f"{observation['step']} Found worker w/o resource {w.id}\n")
-            resource_assignment = get_closest_resources(w, resource_tiles, player)
+            resource_assignment = get_closest_resources(w, resource_tiles, player, observation)
+            if resource_assignment == None:
+                with open(logfile, "a") as f:
+                    f.write(f"{observation['step']} Resource == None in workers loop\n")
+                continue
             unit_to_resource_dict[w.id] = resource_assignment
 
     #with open(logfile, "a") as f:
@@ -308,7 +325,11 @@ def agent(observation, configuration):
                 cell = game_state.map.get_cell(intended_resource.pos.x, intended_resource.pos.y)
 
                 if not cell.has_resource():
-                    intended_resource = get_closest_resources(unit, resource_tiles, player)
+                    intended_resource = get_closest_resources(unit, resource_tiles, player, observation)
+                    if intended_resource == None:
+                        with open(logfile, "a") as f:
+                            f.write(f"{observation['step']} Intended resource returned None!\n")
+                        continue
                     unit_to_resource_dict[unit.id] = intended_resource
                 if unit.pos != cell.pos:
                     # Move to the intended resource
@@ -321,10 +342,8 @@ def agent(observation, configuration):
                     else:
                         with open(logfile, "a") as f:
                             f.write(f"{observation['step']} Unit wants to move to Resource but movement returned None!\n")
-
-
+                        continue
             else:
-
                 if build_city:
                     with open(logfile, "a") as f:
                         f.write(f"{observation['step']} We want to build a city!\n")
