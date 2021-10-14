@@ -72,29 +72,32 @@ def move_to_given_tile(player, opponent, unit, target_location, unit_movement, o
     if xdiff == 0 and ydiff == 0:
         with open(logfile, "a") as f:
             f.write(f"{observation['step']} xdiff and ydiff = 0! Sign y: {np.sign(ydiff)} Sign x: {np.sign(xdiff)}\n")
+        return None
 
-    if abs(ydiff) > abs(xdiff):
+    if abs(ydiff) >= abs(xdiff):
         check_tile = game_state.map.get_cell(unit.pos.x, unit.pos.y + np.sign(ydiff))
         if is_target_position_valid(player, opponent, unit_movement, check_tile, observation, wants_to_build):
             unit_movement[unit.id] = check_tile
             return unit.move(unit.pos.direction_to(check_tile.pos))
         else:
+            #Switch case with cas flutschers?
             if(xdiff == 0):
                 xdiff = 1
-            check_tile = game_state.map.get_cell(unit.pos.x + np.sign(xdiff), unit.pos.y)
-            if is_target_position_valid(player, opponent, unit_movement, check_tile, observation, wants_to_build):
-                unit_movement[unit.id] = check_tile
-                return unit.move(unit.pos.direction_to(check_tile.pos))
-            else:
+
+            if (unit.pos.x + np.sign(xdiff) < game_state.map.width):
+                check_tile = game_state.map.get_cell(unit.pos.x + np.sign(xdiff), unit.pos.y)
+                if is_target_position_valid(player, opponent, unit_movement, check_tile, observation, wants_to_build):
+                    unit_movement[unit.id] = check_tile
+                    return unit.move(unit.pos.direction_to(check_tile.pos))
+            if (unit.pos.x + np.sign(xdiff) >= 0):
                 check_tile = game_state.map.get_cell(unit.pos.x - np.sign(xdiff), unit.pos.y)
                 if is_target_position_valid(player, opponent, unit_movement, check_tile, observation, wants_to_build):
                     unit_movement[unit.id] = check_tile
                     return unit.move(unit.pos.direction_to(check_tile.pos))
-                else:
-                    #Failed to move
-                    with open(logfile, "a") as f:
-                        f.write(f"{observation['step']} Unit did not find a free tile to move!\n")
-                    return None
+            #Failed to move
+            with open(logfile, "a") as f:
+                f.write(f"{observation['step']} Unit did not find a free tile to move!\n")
+            return None
     else:
         check_tile = game_state.map.get_cell(unit.pos.x + np.sign(xdiff), unit.pos.y)
         if is_target_position_valid(player, opponent, unit_movement, check_tile, observation, wants_to_build):
@@ -103,20 +106,20 @@ def move_to_given_tile(player, opponent, unit, target_location, unit_movement, o
         else:
             if (ydiff == 0):
                 ydiff = 1
-            check_tile = game_state.map.get_cell(unit.pos.x, unit.pos.y + np.sign(ydiff))
-            if is_target_position_valid(player, opponent, unit_movement, check_tile, observation, wants_to_build):
-                unit_movement[unit.id] = check_tile
-                return unit.move(unit.pos.direction_to(check_tile.pos))
-            else:
+            if (unit.pos.y + np.sign(ydiff) < game_state.map.height):
+                check_tile = game_state.map.get_cell(unit.pos.x, unit.pos.y + np.sign(ydiff))
+                if is_target_position_valid(player, opponent, unit_movement, check_tile, observation, wants_to_build):
+                    unit_movement[unit.id] = check_tile
+                    return unit.move(unit.pos.direction_to(check_tile.pos))
+            if(unit.pos.y - np.sign(ydiff) >= 0):
                 check_tile = game_state.map.get_cell(unit.pos.x, unit.pos.y - np.sign(ydiff))
                 if is_target_position_valid(player, opponent, unit_movement, check_tile, observation, wants_to_build):
                     unit_movement[unit.id] = check_tile
                     return unit.move(unit.pos.direction_to(check_tile.pos))
-                #Failed to move
-                else:
-                    with open(logfile, "a") as f:
-                        f.write(f"{observation['step']} Unit did not find a free tile to move!\n")
-                    return None
+            #Failed to move
+            with open(logfile, "a") as f:
+                f.write(f"{observation['step']} Unit did not find a free tile to move!\n")
+            return None
 
 
 
@@ -125,45 +128,45 @@ def is_target_position_valid(player, opponent, unit_movement, check_tile, observ
         # Friendly City Tile
         if check_tile.citytile.team == player.team:
             if wants_to_build:
-                with open(logfile, "a") as f:
-                    f.write(f"{observation['step']} Movement Not Valid: Friendly City Tile but wanats to build!\n")
+                #with open(logfile, "a") as f:
+                #    f.write(f"{observation['step']} Movement Not Valid: Friendly City Tile but wanats to build!\n")
                 return False
             else:
-                with open(logfile, "a") as f:
-                    f.write(f"{observation['step']} Movement Valid: Friendly City Tile!\n")
+                #with open(logfile, "a") as f:
+                #    f.write(f"{observation['step']} Movement Valid: Friendly City Tile!\n")
                 return True
         else:
             # Enemy CityTile
-            with open(logfile, "a") as f:
-                f.write(f"{observation['step']} Movement Not Valid: Opponent City Tile in the way!\n")
+            #with open(logfile, "a") as f:
+            #    f.write(f"{observation['step']} Movement Not Valid: Opponent City Tile in the way!\n")
             return False
     # Check if an other Unit already wants to move in that direction that turn
     if check_tile in unit_movement.values():
-        with open(logfile, "a") as f:
-            f.write(f"{observation['step']} Movement Not Valid: Another Unit already wants to move there!\n")
+        #with open(logfile, "a") as f:
+        #    f.write(f"{observation['step']} Movement Not Valid: Another Unit already wants to move there!\n")
         return False
     # Check for Friendly Units/Enemy Units
     for unit_tmp in player.units:
         if unit_tmp.pos == check_tile.pos:
             if unit_tmp.id in unit_movement.keys():
                 # The Unit wants to move away next turn so the tile is free
-                with open(logfile, "a") as f:
-                    f.write(f"{observation['step']} Movement Valid: Friendly Unit on Tile but waants to move away!\n")
+                #with open(logfile, "a") as f:
+                #    f.write(f"{observation['step']} Movement Valid: Friendly Unit on Tile but waants to move away!\n")
                 return True
             else:
                 #TODO check if the unit may still wants to move awaay next turn but was not tested yet maybe with cooldown test if it is even possible
-                with open(logfile, "a") as f:
-                    f.write(f"{observation['step']} Movement Not Valid: Friendly Unit in the way!\n")
+                #with open(logfile, "a") as f:
+                #    f.write(f"{observation['step']} Movement Not Valid: Friendly Unit in the way!\n")
                 return False
     #TODO check for enemy units
     for unit_tmp in opponent.units:
         if unit_tmp.pos == check_tile.pos:
-            with open(logfile, "a") as f:
-                f.write(f"{observation['step']} Movement Not Valid: Opponent Unit in the way!\n")
+            #with open(logfile, "a") as f:
+            #    f.write(f"{observation['step']} Movement Not Valid: Opponent Unit in the way!\n")
             return False
 
-    with open(logfile, "a") as f:
-        f.write(f"{observation['step']} Movement Valid: No case matched, so I guess the way is free!\n")
+    #with open(logfile, "a") as f:
+    #    f.write(f"{observation['step']} Movement Valid: No case matched, so I guess the way is free!\n")
     return True
 
 def build_worker_fun(player, observation):
@@ -273,6 +276,7 @@ def agent(observation, configuration):
 
     # we iterate over all our units and do something with them
     for unit in player.units:
+        #TODO change iterate from newest agent to oldest...??? usefull
         if unit.is_worker() and unit.can_act():
             if unit.get_cargo_space_left() > 0:
                 #closest_resource_tile = get_closest_resources(unit, resource_tiles, player)
@@ -295,6 +299,7 @@ def agent(observation, configuration):
                     with open(logfile, "a") as f:
                         f.write(f"{observation['step']} We want to build a city!\n")
                     if build_location is None:
+
                         empty_near = game_state.map.get_cell_by_pos(unit.pos)
                         build_location = find_empty_tile_near(empty_near, game_state, observation)
 
