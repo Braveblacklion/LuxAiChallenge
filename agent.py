@@ -350,7 +350,9 @@ def agent(observation, configuration):
 
                     ##Check Players Location first. If building is possible then start building
                     possible_empty_tile = game_state.map.get_cell_by_pos(unit.pos)
+                    unit_pos_is_possible_build_location = False
                     if possible_empty_tile.resource == None and possible_empty_tile.road == 0 and possible_empty_tile.citytile == None:
+                        unit_pos_is_possible_build_location = True
                         for k, city in player.cities.items():
                             for city_tile in city.citytiles:
                                 if city_tile.pos.is_adjacent(possible_empty_tile.pos):
@@ -385,13 +387,26 @@ def agent(observation, configuration):
                     if build_location == None:
                         with open(logfile, "a") as f:
                             f.write(f"{observation['step']}: Build Location none found adjacent to a CityTile!\n")
-                        empty_near = game_state.map.get_cell_by_pos(unit.pos)
-                        build_location = find_empty_tile_near(empty_near, game_state, observation)
-                        if build_location == None:
+                        if unit_pos_is_possible_build_location:
+                            actions.append(unit.build_city())
+                            build_city = False
+                            build_location = None
+                            # Remove the unit out of the dict to automatically get the city assigned on next step, because the City is the closest
+                            unit_to_city_dict.pop(unit.id)
                             with open(logfile, "a") as f:
                                 f.write(
-                                    f"{observation['step']}: Build Location none found even with backup method!!!\n")
+                                    f"{observation['step']}: Found Buildplace on unit pos non aadjaacent but building now!\n")
                             continue
+                        else:
+                            empty_near = game_state.map.get_cell_by_pos(unit.pos)
+                            build_location = find_empty_tile_near(empty_near, game_state, observation)
+                            with open(logfile, "a") as f:
+                                f.write(f"{observation['step']}: Build Location ({build_location.pos.x} ,{build_location.pos.y})\n")
+                            actions.append(annotate.circle(build_location.pos.x, build_location.pos.y))
+                            if build_location == None:
+                                with open(logfile, "a") as f:
+                                    f.write(f"{observation['step']}: Build Location none found even with backup method!!!\n")
+                                continue
 
                     if unit.pos == build_location.pos:
                         actions.append(unit.build_city())
