@@ -322,7 +322,14 @@ def agent(observation, configuration):
                 #if closest_resource_tile is not None:
                 #    actions.append(unit.move(unit.pos.direction_to(closest_resource_tile.pos)))
                 intended_resource = unit_to_resource_dict[unit.id]
-                cell = game_state.map.get_cell(intended_resource.pos.x, intended_resource.pos.y)
+                if intended_resource != None:
+                    intended_resource = get_closest_resources(unit, resource_tiles, player, observation)
+                    if intended_resource == None:
+                        with open(logfile, "a") as f:
+                            f.write(f"{observation['step']} Intended resource returned None!\n")
+                        continue
+                    unit_to_resource_dict[unit.id] = intended_resource
+                    cell = game_state.map.get_cell(intended_resource.pos.x, intended_resource.pos.y)
 
                 if not cell.has_resource():
                     intended_resource = get_closest_resources(unit, resource_tiles, player, observation)
