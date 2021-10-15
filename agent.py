@@ -113,7 +113,7 @@ def move_to_given_tile(player, opponent, unit, target_location, unit_movement, o
                 if is_target_position_valid(player, opponent, unit_movement, check_tile, observation, wants_to_build):
                     unit_movement[unit.id] = check_tile
                     return unit.move(unit.pos.direction_to(check_tile.pos))
-            if (unit.pos.x - np.sign(xdiff) >= 0 and unit.pos.x + np.sign(xdiff) < game_state.map.width):
+            if (unit.pos.x - np.sign(xdiff) >= 0 and unit.pos.x - np.sign(xdiff) < game_state.map.width):
                 check_tile = game_state.map.get_cell(unit.pos.x - np.sign(xdiff), unit.pos.y)
                 if is_target_position_valid(player, opponent, unit_movement, check_tile, observation, wants_to_build):
                     unit_movement[unit.id] = check_tile
