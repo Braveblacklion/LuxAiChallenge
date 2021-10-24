@@ -8,7 +8,7 @@ import logging
 import numpy as np
 
 #logging.basicConfig(filename="agent.log", level=logging.INFO)
-logfile = "agent.log"
+logfile = "agent_old.log"
 
 open(logfile, "w")
 
@@ -19,13 +19,13 @@ night_cycle = 10
 build_location = None
 
 unit_to_city_dict = {}
+#unit_to_resource_dict = {}
 blocked_resources = {}
 
 blocked_distance_param = 1
-max_city_walk_distance_factor = 1
 
 def get_resource_tiles(game_state, width, height):
-    resource_tiles: list = []
+    resource_tiles: list[Cell] = []
     for y in range(height):
         for x in range(width):
             cell = game_state.map.get_cell(x, y)
@@ -55,7 +55,15 @@ def get_closest_resources(unit, resource_tiles, player, observation):
             else:
                 closest_dist = dist
                 closest_resource_tile = resource_tile
-
+    '''
+    # If Every Resource Tile has aa worker assigned just go to the closest Resource Tile
+    if closest_resource_tile == None:
+        for resource_tile in resource_tiles_possible:
+            dist = resource_tile.pos.distance_to(unit.pos)
+            if dist < closest_dist:
+                closest_dist = dist
+                closest_resource_tile = resource_tile
+    '''
     if closest_resource_tile == None:
         with open(logfile, "a") as f:
             f.write(f"{observation['step']} No more Resources on the map!\n")
@@ -154,29 +162,45 @@ def is_target_position_valid(player, opponent, unit_movement, check_tile, observ
         # Friendly City Tile
         if check_tile.citytile.team == player.team:
             if wants_to_build:
+                #with open(logfile, "a") as f:
+                #    f.write(f"{observation['step']} Movement Not Valid: Friendly City Tile but wanats to build!\n")
                 return False
             else:
+                #with open(logfile, "a") as f:
+                #    f.write(f"{observation['step']} Movement Valid: Friendly City Tile!\n")
                 return True
         else:
             # Enemy CityTile
+            #with open(logfile, "a") as f:
+            #    f.write(f"{observation['step']} Movement Not Valid: Opponent City Tile in the way!\n")
             return False
     # Check if an other Unit already wants to move in that direction that turn
     if check_tile in unit_movement.values():
+        #with open(logfile, "a") as f:
+        #    f.write(f"{observation['step']} Movement Not Valid: Another Unit already wants to move there!\n")
         return False
     # Check for Friendly Units/Enemy Units
     for unit_tmp in player.units:
         if unit_tmp.pos == check_tile.pos:
             if unit_tmp.id in unit_movement.keys():
                 # The Unit wants to move away next turn so the tile is free
+                #with open(logfile, "a") as f:
+                #    f.write(f"{observation['step']} Movement Valid: Friendly Unit on Tile but waants to move away!\n")
                 return True
             else:
                 #TODO check if the unit may still wants to move awaay next turn but was not tested yet maybe with cooldown test if it is even possible
+                #with open(logfile, "a") as f:
+                #    f.write(f"{observation['step']} Movement Not Valid: Friendly Unit in the way!\n")
                 return False
     #TODO check for enemy units
     for unit_tmp in opponent.units:
         if unit_tmp.pos == check_tile.pos:
+            #with open(logfile, "a") as f:
+            #    f.write(f"{observation['step']} Movement Not Valid: Opponent Unit in the way!\n")
             return False
 
+    #with open(logfile, "a") as f:
+    #    f.write(f"{observation['step']} Movement Valid: No case matched, so I guess the way is free!\n")
     return True
 
 def build_worker_fun(player, observation):
@@ -192,70 +216,14 @@ def build_worker_fun(player, observation):
                     f.write(f"{observation['step']} We build a worker!\n")
                 return cityTile.build_worker()
 
-# Returns True, if the position_to_test ist adjacent to a friendly citytile
-def is_adjacent_to_resource_tile(position_to_test, player, observation):
-    dirs = []
-    #Checks for out of bounds tiles
-    if position_to_test.x > 0:
-        dirs.append((-1,0))
-    if position_to_test.x < game_state.map.width-1:
-        dirs.append((1,0))
-    if position_to_test.y > 0:
-        dirs.append((0,-1))
-    if position_to_test.y < game_state.map.height-1:
-        dirs.append((0, 1))
+def build_city(player, observation):
+    pass
 
-    for d in dirs:
-        try:
-            possible_empty_tile = game_state.map.get_cell(position_to_test.x + d[0], position_to_test.y + d[1])
+def move_to_target_position(player, unit, target_position):
+    pass
 
-            if possible_empty_tile.resource != None and possible_empty_tile.resource.amount > 0:
-                return True
-
-        except Exception as e:
-            with open(logfile, "a") as f:
-                f.write(f"{observation['step']}: Error While searching for adjacent resource tiles: {str(e)}\n")
-            pass
-    return False
-
-# Returns True, if the position_to_test ist adjacent to a friendly citytile
-def is_adjacent_to_city_tiles(position_to_test, player, observation):
-    dirs = []
-    #Checks for out of bounds tiles
-    if position_to_test.x > 0:
-        dirs.append((-1,0))
-    if position_to_test.x < game_state.map.width-1:
-        dirs.append((1,0))
-    if position_to_test.y > 0:
-        dirs.append((0,-1))
-    if position_to_test.y < game_state.map.height-1:
-        dirs.append((0, 1))
-
-    for d in dirs:
-        try:
-            possible_empty_tile = game_state.map.get_cell(position_to_test.x + d[0], position_to_test.y + d[1])
-
-            if possible_empty_tile.citytile != None and possible_empty_tile.citytile.team == player.team:
-                return True
-
-        except Exception as e:
-            with open(logfile, "a") as f:
-                f.write(f"{observation['step']}: Error While searching for adjacent city tiles: {str(e)}\n")
-            pass
-    return False
-
-def is_tile_empty(position):
-    possibly_empty_tile = game_state.map.get_cell(position.x, position.y)
-    if possibly_empty_tile.resource == None and possibly_empty_tile.road == 0 and possibly_empty_tile.citytile == None:
-        #with open(logfile, "a") as f:
-        #    f.write(f"Empty Tile found\n")
-        return True
-    return False
-
-# Returns the closest empty tile to empty near
 def find_empty_tile_near(empty_near, game_state, observation):
     dirs = []
-
     #Checks for out of bounds tiles
     if empty_near.pos.x > 0:
         dirs.append((-1,0))
@@ -269,68 +237,28 @@ def find_empty_tile_near(empty_near, game_state, observation):
     for d in dirs:
         try:
             possible_empty_tile = game_state.map.get_cell(empty_near.pos.x + d[0], empty_near.pos.y + d[1])
-            if is_tile_empty(possible_empty_tile.pos):
-                return possible_empty_tile
+            # logging.WARNING(f"{observation['step']}: Checking {possible_empty_tile}")
+
+            if possible_empty_tile.resource == None and possible_empty_tile.road == 0 and possible_empty_tile.citytile == None:
+                build_location = possible_empty_tile
+                #actions.append(annotate.circle(build_location.pos.x, build_location.pos.y))
+                return build_location
+                # logging.WARNING(f"{observation['step']}: Found build location: {possible_empty_tile}")
 
         except Exception as e:
+            # logging.WARNING(f"{observation['step']}: While searching for empty tiles: {str(e)}")
             with open(logfile, "a") as f:
-                f.write(f"{observation['step']}: Error While searching for empty tiles: {str(e)}\n")
+                f.write(f"{observation['step']}: While searching for empty tiles: {str(e)}\n")
             pass
     return None
-
-# Returns all closest empty tiles to empty near
-def get_all_empty_tiles(empty_near, game_state, observation):
-    dirs = []
-    empty_tiles = []
-
-    #Checks for out of bounds tiles
-    if empty_near.pos.x > 0:
-        dirs.append((-1,0))
-    if empty_near.pos.x < game_state.map.width-1:
-        dirs.append((1,0))
-    if empty_near.pos.y > 0:
-        dirs.append((0,-1))
-    if empty_near.pos.y < game_state.map.height-1:
-        dirs.append((0, 1))
-
-    for d in dirs:
-        try:
-            possible_empty_tile = game_state.map.get_cell(empty_near.pos.x + d[0], empty_near.pos.y + d[1])
-            if is_tile_empty(possible_empty_tile.pos):
-                empty_tiles.append(possible_empty_tile)
-
-        except Exception as e:
-            with open(logfile, "a") as f:
-                f.write(f"{observation['step']}: Error While searching for empty tiles: {str(e)}\n")
-    return empty_tiles
-
-def get_closest_empty_tile(unit, game_state, city, observation):
-    possible_empty_tiles = []
-
-    for city_tile in city.citytiles:
-        possible_empty_tiles.extend(get_all_empty_tiles(city_tile, game_state, observation))
-
-    closest_dist = math.inf
-    closest_empty_tile = None
-    for empty_tile in possible_empty_tiles:
-        dist = unit.pos.distance_to(empty_tile.pos)
-        if dist < closest_dist:
-            closest_dist = dist
-            closest_empty_tile = empty_tile
-    return closest_empty_tile
-
-
-
-
-
 
 def agent(observation, configuration):
     global game_state
     global build_location
     global night_cycle
+    #global unit_to_resource_dict
     global unit_to_city_dict
     global blocked_resources
-    global max_city_walk_distance_factor
 
     ### Do not edit ###
     if observation["step"] == 0:
@@ -352,8 +280,6 @@ def agent(observation, configuration):
 
     workers = [u for u in player.units if u.is_worker()]
 
-    max_city_walk_distance = (observation["step"]/40.0) * max_city_walk_distance_factor + 4
-
 
     for w in workers:
         if w.id not in unit_to_city_dict:
@@ -361,6 +287,21 @@ def agent(observation, configuration):
                 f.write(f"{observation['step']} Found worker unaccounted for {w.id}\n")
             city_assignment = get_closest_city(player, w)
             unit_to_city_dict[w.id] = city_assignment
+    '''
+    for w in workers:
+        if w.id not in unit_to_resource_dict:
+            with open(logfile, "a") as f:
+                f.write(f"{observation['step']} Found worker w/o resource {w.id}\n")
+            resource_assignment = get_closest_resources(w, resource_tiles, player, observation)
+            if resource_assignment == None:
+                with open(logfile, "a") as f:
+                    f.write(f"{observation['step']} Resource == None in workers loop\n")
+                continue
+            unit_to_resource_dict[w.id] = resource_assignment
+    '''
+
+    # with open(logfile, "a") as f:
+    #    f.write(f"{observation['step']} workers: {workers}\n")
 
     cities = player.cities.values()
     city_tiles = []
@@ -373,34 +314,38 @@ def agent(observation, configuration):
     for city in player.cities.values():
         if city.fuel < city.get_light_upkeep()*20: #TODO - 5 * len(city.citytiles):
             build_city = False
-            with open(logfile, "a") as f:
-                f.write(f"{observation['step']} City needs more Fuel: needs {city.get_light_upkeep()*20} but has only {city.fuel}\n")
             break
-        elif len(workers) / len(city_tiles) >= 0.8:
+        elif len(workers) / len(city_tiles) >= 0.9:
             build_city = True
     if observation['step'] <= 20:
         build_city = True
 
+
+    #logging.info(f"{cities}")
+    #logging.info(f"{city_tiles}")
+
+    #TODO check collisions of workers aand prevent them
+    #unit_movement_tiles = []
     unit_movement = {}
+
     # we iterate over all our units and do something with them
     for unit in player.units:
         #TODO change iterate from newest agent to oldest...??? usefull
         #TODO check if nightcycle is close if so all units should return to the closest CityTile
         if unit.is_worker() and unit.can_act():
-            with open(logfile, "a") as f:
-                f.write(f"{observation['step']} Unit: {unit.id}\n")
             if unit.get_cargo_space_left() > 0:
-                #with open(logfile, "a") as f:
-                #    f.write(f"{observation['step']} Unit has cargo space left!\n")
+                #closest_resource_tile = get_closest_resources(unit, resource_tiles, player)
+                #if closest_resource_tile is not None:
+                #    actions.append(unit.move(unit.pos.direction_to(closest_resource_tile.pos)))
+                #if unit.id in unit_to_resource_dict.keys():
                 unit_cell = game_state.map.get_cell(unit.pos.x, unit.pos.y)
-                #if resource_tile.resource.type == Constants.RESOURCE_TYPES.COAL and not player.researched_coal(): continue
-                #if resource_tile.resource.type == Constants.RESOURCE_TYPES.URANIUM and not player.researched_uranium(): continue
                 if unit_cell.resource != None and unit_cell.resource.amount > 0:
                     if unit_cell.resource.type == Constants.RESOURCE_TYPES.COAL and not player.researched_coal(): continue
                     if unit_cell.resource.type == Constants.RESOURCE_TYPES.URANIUM and not player.researched_uranium(): continue
                     #unit is farming
                     blocked_resources[unit.id] = unit_cell.pos
                     continue
+
 
                 intended_resource, distance = get_closest_resources(unit, resource_tiles, player, observation)
                 if intended_resource == None:
@@ -411,6 +356,15 @@ def agent(observation, configuration):
                 #unit_to_resource_dict[unit.id] = intended_resource
                 cell = game_state.map.get_cell(intended_resource.pos.x, intended_resource.pos.y)
 
+                '''
+                if not cell.has_resource():
+                    intended_resource = get_closest_resources(unit, resource_tiles, player, observation)
+                    if intended_resource == None:
+                        with open(logfile, "a") as f:
+                            f.write(f"{observation['step']} Intended resource returned None!\n")
+                        continue
+                    #unit_to_resource_dict[unit.id] = intended_resource
+                    '''
                 if unit.pos != cell.pos:
                     # Move to the intended resource
                     movement = move_to_given_tile(player, opponent, unit, intended_resource, unit_movement, observation, False)
@@ -421,60 +375,58 @@ def agent(observation, configuration):
                         actions.append(annotate.line(unit.pos.x, unit.pos.y, intended_resource.pos.x, intended_resource.pos.y))
                         if distance <= 1:
                             blocked_resources[unit.id] = cell.pos
-                        with open(logfile, "a") as f:
-                            f.write(
-                                f"{observation['step']} Movement found: {movement}\n")
                     else:
                         with open(logfile, "a") as f:
                             f.write(f"{observation['step']} Unit wants to move to Resource but movement returned None!\n")
                         continue
                 else:
                     with open(logfile, "a") as f:
-                        f.write(f"{observation['step']} Unit at intendet resource position!\n")
+                        f.write(f"{observation['step']} Should not be able to hit this message!\n")
+
+                #else:
+                    #with open(logfile, "a") as f:
+                        #f.write(f"{observation['step']} Unit_id was not in unit_to_resc dict!\n")
             else:
                 if build_city:
                     with open(logfile, "a") as f:
                         f.write(f"{observation['step']} We want to build a city!\n")
 
                     ##Check Players Location first. If building is possible then start building
+                    possible_empty_tile = game_state.map.get_cell_by_pos(unit.pos)
                     unit_pos_is_possible_build_location = False
-                    if is_tile_empty(unit.pos):
+                    if possible_empty_tile.resource == None and possible_empty_tile.road == 0 and possible_empty_tile.citytile == None:
                         unit_pos_is_possible_build_location = True
-                        # TODO optimize only look at adjacent tiles to see if a CITY IS BUILD THERE ############################################################
-                        is_adjacent = is_adjacent_to_city_tiles(unit.pos, player, observation)
-
-                        if is_adjacent:
-                            actions.append(unit.build_city())
-                            build_city = False
-                            build_location = None
-                            unit_to_city_dict.pop(unit.id)
-                            with open(logfile, "a") as f:
-                                f.write(
-                                    f"{observation['step']}: Found Buildplace on unit pos and building now! {unit.id}\n")
-                            continue
-                    # check adjacent tiles of unit
-
+                        for k, city in player.cities.items():
+                            for city_tile in city.citytiles:
+                                if city_tile.pos.is_adjacent(possible_empty_tile.pos):
+                                    actions.append(unit.build_city())
+                                    build_city = False
+                                    build_location = None
+                                    # Remove the unit out of the dict to automatically get the city assigned on next step, because the City is the closest
+                                    unit_to_city_dict.pop(unit.id)
+                                    with open(logfile, "a") as f:
+                                        f.write(
+                                            f"{observation['step']}: Found Buildplace on unit pos and building now!\n")
+                                    #End turn for this unit
+                                    break
+                            #Already Built
+                            if build_city == False:
+                                break
+                    if build_city == False:
+                        with open(logfile, "a") as f:
+                            f.write(f"{observation['step']}: Oops loop should have been skipped because build place alreaady found!\n")
+                        continue
+                    #Else unit should go closer to the city
 
                     ##First try only build whereever possible to an adjacent citytile
-                    closest_city = get_closest_city(player, unit)
-                    if closest_city != None:
-                        build_location = get_closest_empty_tile(unit, game_state, closest_city, observation)
-                    if build_location != None:
-                        actions.append(annotate.circle(build_location.pos.x, build_location.pos.y))
-                        with open(logfile, "a") as f:
-                            f.write(
-                                f"{observation['step']}: New Method found Buildplace on: x={build_location.pos.x}, y={build_location.pos.y}\n")
-                    '''
                     for k, city in player.cities.items():
                         for city_tile in city.citytiles:
                             empty_near = game_state.map.get_cell_by_pos(city_tile.pos)
                             build_location = find_empty_tile_near(empty_near, game_state, observation)
                             if build_location != None:
-                                actions.append(annotate.circle(build_location.pos.x, build_location.pos.y))
                                 break
                         if build_location!= None:
                             break
-                    '''
                     # If building to adjacent city tile is not possible then try to build somewhere else
                     if build_location == None:
                         with open(logfile, "a") as f:
@@ -492,10 +444,9 @@ def agent(observation, configuration):
                         else:
                             empty_near = game_state.map.get_cell_by_pos(unit.pos)
                             build_location = find_empty_tile_near(empty_near, game_state, observation)
-                            if build_location != None:
-                                with open(logfile, "a") as f:
-                                    f.write(f"{observation['step']}: Build Location ({build_location.pos.x} ,{build_location.pos.y})\n")
-                                actions.append(annotate.circle(build_location.pos.x, build_location.pos.y))
+                            with open(logfile, "a") as f:
+                                f.write(f"{observation['step']}: Build Location ({build_location.pos.x} ,{build_location.pos.y})\n")
+                            actions.append(annotate.circle(build_location.pos.x, build_location.pos.y))
                             if build_location == None:
                                 with open(logfile, "a") as f:
                                     f.write(f"{observation['step']}: Build Location none found even with backup method!!!\n")
@@ -510,34 +461,35 @@ def agent(observation, configuration):
                         continue
                     else:
                         with open(logfile, "a") as f:
-                            f.write(f"{observation['step']}: Navigating to where we wish to build with {unit.id}!\n")
+                            f.write(f"{observation['step']}: Navigating to where we wish to build!\n")
                         movement = move_to_given_tile(player, opponent, unit, build_location, unit_movement, observation, build_city)
+                        #with open(logfile, "a") as f:
+                        #    f.write(f"{observation['step']}: Movement to build a City: {movement}\n")
                         if movement != None:
                             actions.append(movement)
                             if unit.id in blocked_resources.keys():
                                 blocked_resources.pop(unit.id)
-                        else:
-                            with open(logfile, "a") as f:
-                                f.write(
-                                    f"{observation['step']}: Navigating to where we wish to build failed! Got no direction for {unit.id}!\n")
+                        continue
                 # if unit is a worker and there is no cargo space left, and we have cities, lets return to them
                 elif len(player.cities) > 0:
+                    #if unit.id in unit_to_city_dict:
+                    #    with open(logfile, "a") as f:
+                    #        f.write(f"{observation['step']}: unit_to_city_dict: {unit_to_city_dict[unit.id]} \n")
                     if unit.id in unit_to_city_dict:
                         cityFound = False
                         for city in city_tiles:
                             if (unit_to_city_dict[unit.id].cityid == city.cityid):
+                                #with open(logfile, "a") as f:
+                                #    f.write(
+                                #        f"{observation['step']}: Found City to move to \n")
                                 cityFound = True
                                 break
                         if cityFound:
                             #Check if city already has enough fuel if so the
                             target_city_tile = get_closest_citytile_from_city(unit, unit_to_city_dict[unit.id])
-                            if unit.pos.distance_to(target_city_tile.pos) >= max_city_walk_distance:
-                                if is_tile_empty(unit.pos):
-                                    actions.append(unit.build_city())
-                                    with open(logfile, "a") as f:
-                                        f.write(f"{observation['step']}: Build new City because old one is too far away\n")
-                                    continue
                             movement = move_to_given_tile(player, opponent, unit, target_city_tile, unit_movement, observation, build_city)
+                            #with open(logfile, "a") as f:
+                            #    f.write(f"{observation['step']}: ifMovement: {movement}\n")
                             if movement != None:
                                 actions.append(movement)
                                 if unit.id in blocked_resources.keys():
@@ -545,13 +497,6 @@ def agent(observation, configuration):
                         else:
                             unit_to_city_dict[unit.id] = get_closest_city(player, unit)
                             target_city_tile = get_closest_citytile_from_city(unit, unit_to_city_dict[unit.id])
-                            # Check if the distance to closest City tile is too high. If So build a city if the tile is empty elso move in to the closest city tile direction
-                            if unit.pos.distance_to(target_city_tile.pos) >= max_city_walk_distance:
-                                if is_tile_empty(unit.pos):
-                                    actions.append(unit.build_city())
-                                    with open(logfile, "a") as f:
-                                        f.write(f"{observation['step']}: Build new City because old one is too far away\n")
-                                    continue
                             movement = move_to_given_tile(player, opponent, unit, target_city_tile, unit_movement, observation, build_city)
                             with open(logfile, "a") as f:
                                 f.write(f"{observation['step']}: elseMovement: {movement}\n")
@@ -559,6 +504,41 @@ def agent(observation, configuration):
                                 actions.append(movement)
                                 if unit.id in blocked_resources.keys():
                                     blocked_resources.pop(unit.id)
+                    else:
+                        with open(logfile, "a") as f:
+                            f.write(f"{observation['step']}: Unit not in unit_to_city_dict!!!\n")
+
+                        #move_dir = unit.pos.direction_to(unit_to_city_dict[unit.id].pos)
+                        #actions.append(unit.move(move_dir))
+                    '''
+                    if build_location:
+                        actions.append(unit.move(unit.pos.direction_to(build_location.pos)))
+                    else:
+                        city_with_lowest_fuel = None
+                        for city in player.cities.values():
+                            if city_with_lowest_fuel is None:
+                                city_with_lowest_fuel = city
+                            elif city_with_lowest_fuel.fuel > city.fuel:
+                                city_with_lowest_fuel = city
+                        with open(logfile, "a") as f:
+                            f.write(f"{observation['step']}: City with lowest fuel: {str(city_with_lowest_fuel.cityid)} {str(city_with_lowest_fuel.fuel)}\n")
+                        #closest_city_tile = get_closest_city(player, unit)
+
+
+                        if city_with_lowest_fuel is not None:
+                            #Find nearest CityTile of that City
+                            nearest_city_tile = None
+                            for city_tile in city_with_lowest_fuel.citytiles:
+                                if nearest_city_tile is None:
+                                    nearest_city_tile = city_tile
+                                if unit.pos.distance_to(nearest_city_tile.pos) > unit.pos.distance_to(city_tile.pos):
+                                    nearest_city_tile = city_tile
+
+                            move_dir = unit.pos.direction_to(nearest_city_tile.pos)
+                            actions.append(unit.move(move_dir))'''
+
+    # you can add debug annotations using the functions in the annotate object
+    # actions.append(annotate.circle(0, 0))
 
     can_create = len(city_tiles) - len(workers)
 
