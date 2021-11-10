@@ -9,7 +9,6 @@ import numpy as np
 
 #logging.basicConfig(filename="agent.log", level=logging.INFO)
 logfile = "agent_old.log"
-
 open(logfile, "w")
 
 DIRECTIONS = Constants.DIRECTIONS
@@ -25,7 +24,7 @@ blocked_resources = {}
 blocked_distance_param = 1
 
 def get_resource_tiles(game_state, width, height):
-    resource_tiles: list[Cell] = []
+    resource_tiles: list = []
     for y in range(height):
         for x in range(width):
             cell = game_state.map.get_cell(x, y)

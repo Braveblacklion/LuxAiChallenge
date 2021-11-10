@@ -22,7 +22,7 @@ unit_to_city_dict = {}
 blocked_resources = {}
 
 blocked_distance_param = 1
-max_city_walk_distance_factor = 1
+max_city_walk_distance_factor = 0
 
 def get_resource_tiles(game_state, width, height):
     resource_tiles: list = []
@@ -49,12 +49,34 @@ def get_closest_resources(unit, resource_tiles, player, observation):
         dist = resource_tile.pos.distance_to(unit.pos)
         if dist < closest_dist:
             if resource_tile.pos in blocked_resources.values(): #  and dist <= blocked_distance_param:
-                #with open(logfile, "a") as f:
-                #    f.write(f"{observation['step']} Resource blocked!\n")
-                continue
-            else:
-                closest_dist = dist
-                closest_resource_tile = resource_tile
+                if dist < 2:
+                    continue
+            closest_dist = dist
+            closest_resource_tile = resource_tile
+
+    if closest_resource_tile == None:
+        with open(logfile, "a") as f:
+            f.write(f"{observation['step']} No more Resources on the map!\n")
+    return closest_resource_tile, closest_dist
+
+def get_highest_resource(unit, resource_tiles, player, observation):
+    closest_dist = math.inf
+    closest_resource_tile = None
+    resource_tiles_possible = []
+    # if the unit is a worker and we have space in cargo, lets find the nearest resource tile and try to mine it
+    for resource_tile in resource_tiles:
+        if player.researched_coal() and resource_tile.resource.type == Constants.RESOURCE_TYPES.WOOD: continue
+        if player.researched_uranium() and (resource_tile.resource.type == Constants.RESOURCE_TYPES.WOOD or resource_tile.resource.type == Constants.RESOURCE_TYPES.COAL): continue
+        if resource_tile.resource.type == Constants.RESOURCE_TYPES.COAL and not player.researched_coal(): continue
+        if resource_tile.resource.type == Constants.RESOURCE_TYPES.URANIUM and not player.researched_uranium(): continue
+
+        dist = resource_tile.pos.distance_to(unit.pos)
+        if dist < closest_dist:
+            if resource_tile.pos in blocked_resources.values():  # and dist <= blocked_distance_param:
+                if dist < 2:
+                    continue
+            closest_dist = dist
+            closest_resource_tile = resource_tile
 
     if closest_resource_tile == None:
         with open(logfile, "a") as f:
@@ -376,7 +398,7 @@ def agent(observation, configuration):
             with open(logfile, "a") as f:
                 f.write(f"{observation['step']} City needs more Fuel: needs {city.get_light_upkeep()*20} but has only {city.fuel}\n")
             break
-        elif len(workers) / len(city_tiles) >= 0.8:
+        elif len(workers) / len(city_tiles) >= 0.75:
             build_city = True
     if observation['step'] <= 20:
         build_city = True
@@ -421,16 +443,16 @@ def agent(observation, configuration):
                         actions.append(annotate.line(unit.pos.x, unit.pos.y, intended_resource.pos.x, intended_resource.pos.y))
                         if distance <= 1:
                             blocked_resources[unit.id] = cell.pos
-                        with open(logfile, "a") as f:
-                            f.write(
-                                f"{observation['step']} Movement found: {movement}\n")
+                        #with open(logfile, "a") as f:
+                        #    f.write(
+                        #        f"{observation['step']} Movement found: {movement}\n")
                     else:
                         with open(logfile, "a") as f:
                             f.write(f"{observation['step']} Unit wants to move to Resource but movement returned None!\n")
                         continue
-                else:
-                    with open(logfile, "a") as f:
-                        f.write(f"{observation['step']} Unit at intendet resource position!\n")
+                #else:
+                    #with open(logfile, "a") as f:
+                    #    f.write(f"{observation['step']} Unit at intendet resource position!\n")
             else:
                 if build_city:
                     with open(logfile, "a") as f:
