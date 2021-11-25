@@ -10,7 +10,10 @@ explored_clusters = []
 
 # Initialises the clusters
 def init_Clusters(resources_list, observation):
+    global cluster_list
     cluster_list = get_adjacent_resc_tiles(resources_list, observation)
+    #with open(logfile, "a") as f:
+    #    f.write(f"{observation['step']} Clusters initialized: {cluster_list}\n")
     return cluster_list
 
 # Updates the cluster while removing cells with no resources and returns the updated cluster_list
@@ -41,8 +44,8 @@ def get_adjacent_resc_tiles(rescources_list, observation):
     clusters = []
     while len(resc_list_copy) > 0:
         cluster = []
-        with open(logfile, "a") as f:
-            f.write(f"{observation['step']} {resc_list_copy[0].pos}\n")
+        #with open(logfile, "a") as f:
+        #    f.write(f"{observation['step']} {resc_list_copy[0].pos}\n")
         cell = resc_list_copy[0]
         cluster.append(cell)
         resc_list_copy.pop(0)
@@ -58,7 +61,8 @@ def get_adjacent_resc_tiles(rescources_list, observation):
         clusters.append(cluster)
     return clusters
 
-def get_unexplored_cluster(player, unit):
+def get_unexplored_cluster(player, unit, observation):
+    global cluster_list
     searched_resource_type = []
     if player.researched_uranium():
         searched_resource_type = [Constants.RESOURCE_TYPES.URANIUM, Constants.RESOURCE_TYPES.COAL, Constants.RESOURCE_TYPES.WOOD]
@@ -70,6 +74,9 @@ def get_unexplored_cluster(player, unit):
     possible_clusters = []
     distance_to_cluster = []
 
+    #if cluster_list == []:
+    #    update_Clusters()
+
     for resource_type in searched_resource_type:
         for cluster in cluster_list:
             if len(cluster) == 0:
@@ -79,12 +86,21 @@ def get_unexplored_cluster(player, unit):
                 distance_to_cluster.append(unit.pos.distance_to(calculateCenterofCluster(cluster)))
 
     if len(possible_clusters) == 0:
+        with open(logfile, "a") as f:
+            f.write(f"{observation['step']}: No Possible clusters found for unit {unit.id} cluster_list_length: {len(cluster_list)}!\n")
         return None
 
     if len(possible_clusters) == 1:
+        with open(logfile, "a") as f:
+            f.write(f"{observation['step']}: only one cluster found for unit {unit.id}!\n")
         return possible_clusters[0]
     else:
-        cluster = np.random.choice(possible_clusters, p=1 - np.array(distance_to_cluster) / sum(distance_to_cluster))
+        with open(logfile, "a") as f:
+            f.write(f"{observation['step']}: choosing random cluster for unit {unit.id}!\n")
+        p = 1-(np.array(distance_to_cluster) / sum(distance_to_cluster))
+        with open(logfile, "a") as f:
+            f.write(f"{observation['step']}: Probabilities {p} with distance sum: {sum(distance_to_cluster)} and Distances: {np.array(distance_to_cluster)}!\n")
+        cluster = np.random.choice(possible_clusters, p=np.array(distance_to_cluster) / float(sum(distance_to_cluster)))
 
     return cluster
 
@@ -118,7 +134,20 @@ def calculateCenterofCluster(cluster):
     x = x_sum/count
     y = y_sum/count
 
-    return x,y
+    return Position(x,y)
+
+def calculateIntegerCenterofCluster(cluster):
+    x_sum = 0
+    y_sum = 0
+    count = 0
+    for tile in cluster:
+        x_sum += tile.pos.x
+        y_sum += tile.pos.y
+        count += 1
+    x = x_sum/count
+    y = y_sum/count
+
+    return Position(int(x),int(y))
 
 # Returns the closest cluster regarding its center from the given position
 def get_closest_cluster(position, clusters):
@@ -167,7 +196,15 @@ def get_closest_cluster_id_by_resource_type(position, cluster_dict, resourceType
             continue
         x,y = calculateCenterofCluster(value)
         dist = position.distance_to(Position(x,y))
-        if dist < closest_dist:
+        if dist == closest_dist:
+            # Chose the one tile, where the two directions are not 0 to prevent units getting stuck
+            dir_diff = (x - position.x, y - position.y)
+            xdiff = dir_diff[0]
+            ydiff = dir_diff[1]
+            if xdiff != 0 and ydiff != 0:
+                closest_dist = dist
+                closest_cluster_id = key
+        elif dist < closest_dist:
             closest_dist = dist
             closest_cluster_id = key
     return closest_cluster_id

@@ -1,4 +1,4 @@
-logfile = "agent_cluster.log"
+logfile = "agent.log"
 
 open(logfile, "w")
 
