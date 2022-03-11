@@ -34,6 +34,7 @@ max_distance_to_fuel_city = 7 # TODO match to map size?
 max_walk_home_distance = 3
 max_build_to_adjacent_city_tile_distance = 4
 
+
 def get_resource_tiles(game_state, width, height):
     resource_tiles: list = []
     for y in range(height):
@@ -81,6 +82,7 @@ def get_closest_resources(unit, resource_tiles, player, observation):
         closest_resource_tile, closest_dist = get_highest_resource(unit, resource_tiles, player, observation)
     return closest_resource_tile, closest_dist
 
+
 # Returns the biggest cluster
 def get_biggest_cluster(clusters):
     biggest_cluster = None
@@ -90,6 +92,7 @@ def get_biggest_cluster(clusters):
             biggest_cluster = cluster
             max_tiles = len(biggest_cluster)
     return biggest_cluster
+
 
 # Returns the biggest cluster for the given resource tpye
 def get_biggest_cluster_by_type(clusters, resc_type):
@@ -128,6 +131,7 @@ def get_highest_resource(unit, resource_tiles, player, observation):
             f.write(f"{observation['step']} No more Resources on the map!\n")
     return closest_resource_tile, closest_dist
 
+
 def get_closest_city(player, unit):
     closest_dist = math.inf
     closest_city = None
@@ -138,6 +142,7 @@ def get_closest_city(player, unit):
                 closest_dist = dist
                 closest_city = city
     return closest_city
+
 
 def get_closest_citytile(player, unit):
     closest_dist = math.inf
@@ -150,6 +155,7 @@ def get_closest_citytile(player, unit):
                 closest_city_tile = city_tile
     return closest_city_tile, dist
 
+
 def get_closest_citytile_from_city(unit, targetCity):
     closest_dist = math.inf
     closest_city_tile = None
@@ -160,6 +166,7 @@ def get_closest_citytile_from_city(unit, targetCity):
             closest_city_tile = city_tile
     return closest_city_tile
 
+
 def move_to_given_tile(player, opponent, unit, target_position, observation, wants_to_build):
 
     global unit_movement
@@ -167,15 +174,18 @@ def move_to_given_tile(player, opponent, unit, target_position, observation, wan
     with open(logfile, "a") as f:
         f.write(f"{observation['step']} {target_position}\n")
 
+    # Calculation of the Differences of each Coordinate
     dir_diff = (target_position.x - unit.pos.x, target_position.y - unit.pos.y)
     xdiff = dir_diff[0]
     ydiff = dir_diff[1]
 
+    # Failure: Unit is at given Tile and should not have entered this Method
     if xdiff == 0 and ydiff == 0:
         with open(logfile, "a") as f:
             f.write(f"{observation['step']} xdiff and ydiff = 0! Sign y: {np.sign(ydiff)} Sign x: {np.sign(xdiff)}\n")
         return None
 
+    # Check which direction has the higher Difference
     if abs(ydiff) >= abs(xdiff):
         check_tile = game_state.map.get_cell(unit.pos.x, unit.pos.y + np.sign(ydiff))
         if is_target_position_valid(player, opponent, check_tile, observation, wants_to_build):
@@ -264,6 +274,7 @@ def is_target_position_valid(player, opponent, check_tile, observation, wants_to
 
     return True
 
+
 def build_worker_fun(player, observation):
     # TODO choose optimal City to spawn new worker
     # Choose fist City to spawn worker
@@ -276,6 +287,7 @@ def build_worker_fun(player, observation):
                 with open(logfile, "a") as f:
                     f.write(f"{observation['step']} We build a worker!\n")
                 return cityTile.build_worker()
+
 
 # Returns True, if the position_to_test ist adjacent to a friendly citytile
 def is_adjacent_to_resource_tile(position_to_test, observation):
@@ -303,6 +315,7 @@ def is_adjacent_to_resource_tile(position_to_test, observation):
             pass
     return False
 
+
 # Returns True, if the position_to_test ist adjacent to a friendly citytile
 def is_adjacent_to_city_tiles(position_to_test, player, observation):
     dirs = []
@@ -329,6 +342,7 @@ def is_adjacent_to_city_tiles(position_to_test, player, observation):
             pass
     return False
 
+
 def is_tile_empty(position):
     possibly_empty_tile = game_state.map.get_cell(position.x, position.y)
     if possibly_empty_tile.resource == None and possibly_empty_tile.road == 0 and possibly_empty_tile.citytile == None:
@@ -336,6 +350,7 @@ def is_tile_empty(position):
         #    f.write(f"Empty Tile found\n")
         return True
     return False
+
 
 # Returns the closest empty tile to empty near
 def find_empty_tile_near(empty_near, game_state, observation):
@@ -363,6 +378,7 @@ def find_empty_tile_near(empty_near, game_state, observation):
             pass
     return None
 
+
 # Returns all closest empty tiles to empty near
 def get_all_empty_tiles(empty_near, game_state, observation):
     dirs = []
@@ -389,6 +405,7 @@ def get_all_empty_tiles(empty_near, game_state, observation):
                 f.write(f"{observation['step']}: Error While searching for empty tiles: {str(e)}\n")
     return empty_tiles
 
+
 # Returns the Cell of the requested direction from the given Position
 def get_Cell_of_given_direction(currentPosition, direction, game_state):
     if direction == Constants.DIRECTIONS.NORTH:
@@ -399,6 +416,7 @@ def get_Cell_of_given_direction(currentPosition, direction, game_state):
         return game_state.map.get_cell(currentPosition.x, currentPosition.y + 1)
     elif direction == Constants.DIRECTIONS.NORTH:
         return game_state.map.get_cell(currentPosition.x, currentPosition.y - 1)
+
 
 # Returns True if a City Tile is on the planned way
 def is_city_tile_on_direct_way(position, target_pos, game_state):
@@ -412,11 +430,15 @@ def is_city_tile_on_direct_way(position, target_pos, game_state):
             currentPosition = cell.pos
     return False
 
+
 def get_closest_empty_tile_adjacent_to_city(unit, game_state, city, observation):
     possible_empty_tiles = []
 
     for city_tile in city.citytiles:
-        possible_empty_tiles.extend(get_all_empty_tiles(city_tile, game_state, observation))
+        empty_tiles = get_all_empty_tiles(city_tile, game_state, observation)
+        for tile in empty_tiles:
+            if tile not in possible_empty_tiles:
+                possible_empty_tiles.append(tile)
 
     closest_dist = math.inf
     closest_empty_tile = None
@@ -576,13 +598,14 @@ def choose_action_for_unit(player, unit, resource_list, isNight, opponent, obser
                 return ACTION_TYPES.NONE, None
     else:
         if unit.get_cargo_space_left() == 0:
-            action_list = [ACTION_TYPES.EXPLORE, ACTION_TYPES.BUILD_CITY]
+            action_list = [ACTION_TYPES.EXPLORE, ACTION_TYPES.BUILD_CITY, ACTION_TYPES.FUEL_UP_CITY]
             # Do not explore on the first day cylce
             if observation["step"] < 20:
                 action = ACTION_TYPES.BUILD_CITY
             else:
-                distribution = [.1, .9]
+                distribution = [.1, .4, .5]
                 action = np.random.choice(action_list, p=distribution)
+
             if action == ACTION_TYPES.EXPLORE:
                 target_cluster = ClusterManager.get_unexplored_cluster(player, unit, observation)
                 if (target_cluster != None):
@@ -593,6 +616,7 @@ def choose_action_for_unit(player, unit, resource_list, isNight, opponent, obser
                             f"{observation['step']} get_unexplored_cluster returned None!\n")
                     return ACTION_TYPES.NONE, None
             else:
+                # TODO chose fuel up city based on closest city fuel need
                 # If action set to BUILD_CITY then unit should build city instantly
                 if action == ACTION_TYPES.BUILD_CITY:
                     closest_city = get_closest_city(player, unit)
@@ -615,6 +639,11 @@ def choose_action_for_unit(player, unit, resource_list, isNight, opponent, obser
                 #Fuel up the City!
                 possibleCities= []
                 distances = []
+
+                with open(logfile, "a") as f:
+                    f.write(
+                        f"{observation['step']} FUEL UP CITY!\n")
+
                 for city in player.cities.values():
                     if city.fuel <= city.get_light_upkeep():
                         closest_city_tile = get_closest_citytile_from_city(unit, city)
@@ -660,6 +689,7 @@ def choose_action_for_unit(player, unit, resource_list, isNight, opponent, obser
 def find_place_to_build_new_city(unit, game_state, observation):
     tile = get_closest_empty_tile(unit, game_state, observation)
     return tile
+
 
 def find_place_to_build_cityTile_adjacent_to_city(unit, game_state, city, observation):
     global max_build_to_adjacent_city_tile_distance
@@ -842,7 +872,7 @@ def agent(observation, configuration):
 
         if action == ACTION_TYPES.FARM:
             # Unit is full or rescources so farming completed
-            if unit.cargo.uranium >= 20 or unit.cargo.coal >= 50:
+            if unit.cargo.uranium >= 15 or unit.cargo.coal >= 40:
                 action = ACTION_TYPES.FUEL_UP_CITY
                 # If the unit farmed unranium then the Unit should fuel up the city
                 # Fuel up the City!
