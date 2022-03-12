@@ -12,5 +12,9 @@ The lux-ai-tensorflow-dqn.ipynb is the analysed Deep-Q-Learning Network.
 
 The documentation of the project can be found in the "Dokumentation"-Folder.
 
+## Setup
+
+To run the Project, create a virtual Environment in anaconda using the requirements.txt file with: conda create --name LUXAICHALLENGE --file requirements.txt
+
 
 
